@@ -1,18 +1,34 @@
-from typing import Dict, Any, List
+from __future__ import annotations
+
+from typing import Any
+
 
 class DocumentVisionEngine:
-    def extract_invoice_fields(self, mock_ocr_boxes: List[Dict[str, Any]]) -> Dict[str, Any]:
-        total_amount = None
-        invoice_number = None
-        for b in mock_ocr_boxes:
-            text = b.get("text", "")
-            if "INV-" in text:
+    """Structured field extractor for OCR bounding-box payloads."""
+
+    def extract_invoice_fields(
+        self, ocr_boxes: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        total_amount: str | None = None
+        invoice_number: str | None = None
+        for box in ocr_boxes:
+            text = str(box.get("text", "")).strip()
+            if not text:
+                continue
+            if invoice_number is None and "INV-" in text:
                 invoice_number = text
-            if "$" in text or "USD" in text:
+            if total_amount is None and ("$" in text or "USD" in text or "EUR" in text):
                 total_amount = text
 
+        if invoice_number and total_amount:
+            extraction_status = "PARSED_SUCCESSFULLY"
+        elif invoice_number or total_amount:
+            extraction_status = "PARTIAL"
+        else:
+            extraction_status = "FIELDS_NOT_FOUND"
+
         return {
-            "invoice_number": invoice_number or "INV-2026-0881",
-            "total_amount": total_amount or "$1,450.00 USD",
-            "status": "PARSED_SUCCESSFULLY"
+            "invoice_number": invoice_number,
+            "total_amount": total_amount,
+            "status": extraction_status,
         }
